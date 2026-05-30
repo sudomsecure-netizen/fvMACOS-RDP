@@ -1,4 +1,4 @@
-name: macOS VNC Server
+name: macOS True VNC Server
 on: 
   workflow_dispatch:
 
@@ -9,21 +9,39 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Download and Initialize Ngrok
+    - name: Install VNC Server and Tools
+      run: |
+        echo "=== Installing TigerVNC via Homebrew ==="
+        brew install tigervnc
+
+    - name: Configure VNC Password
+      run: |
+        echo "=== Setting VNC Password ==="
+        # Creating the local .vnc directory
+        mkdir -p ~/.vnc
+        
+        # This securely writes your password 'Alone215' into the VNC configuration
+        echo "Alone215" | vncpasswd -f > ~/.vnc/passwd
+        chmod 600 ~/.vnc/passwd
+
+    - name: Start VNC Desktop and Ngrok
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
       run: |
-        echo "=== Installing Ngrok via Homebrew ==="
-        # Bypasses broken URLs and unzipping entirely
+        echo "=== Installing Ngrok ==="
         brew install ngrok/ngrok/ngrok
         
         echo "=== Authenticating Ngrok ==="
         ngrok config add-authtoken "$NGROK_AUTH_TOKEN"
         
-        echo "=== Launching Ngrok Tunnel ==="
-        nohup ngrok tcp 22 --log=stdout > /dev/null 2>&1 &
+        echo "=== Launching Virtual VNC Server ==="
+        # Starts a virtual desktop on display :1 (which maps to port 5901)
+        vncserver :1 -geometry 1280x720 -depth 24
+        
+        echo "=== Launching Ngrok Tunnel targeting Port 5901 ==="
+        nohup ngrok tcp 5901 --log=stdout > /dev/null 2>&1 &
 
-    - name: Fetch Public Address
+    - name: Fetch Public VNC Address
       run: |
         echo "Waiting for Ngrok tunnel link to generate..."
         for i in {1..6}; do
@@ -36,9 +54,12 @@ jobs:
         done
 
         echo "========================================================"
-        echo "YOUR NGROK TUNNEL ADDRESS:"
+        echo "YOUR PUBLIC VNC ADDRESS:"
         curl --silent http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url'
         echo "========================================================"
 
-    - name: Launch Interactive Session
-      uses: mxschmitt/action-tmate@v3
+    - name: Keep Runner Alive
+      run: |
+        echo "Runner locked and active. Close the workflow run on GitHub when finished."
+        # Keeps the container running without utilizing tmate
+        tail -f /dev/null
