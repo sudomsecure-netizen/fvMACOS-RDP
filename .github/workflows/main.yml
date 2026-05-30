@@ -1,58 +1,24 @@
-name: macOS True VNC Server
+name: macOS Remote Desktop Server
 on: 
   workflow_dispatch:
 
 jobs:
-  vnc-session:
+  desktop-session:
     runs-on: macos-latest
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Start VNC Desktop and Ngrok Tunnel
-      env:
-        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+    - name: Set Up Chrome Remote Desktop
       run: |
-        echo "=== Installing Ngrok ==="
-        brew install ngrok/ngrok/ngrok
-        
-        echo "=== Authenticating Ngrok ==="
-        /opt/homebrew/bin/ngrok config add-authtoken "$NGROK_AUTH_TOKEN"
-        
-        echo "=== Configuring Password Direct File ==="
-        mkdir -p ~/.vnc
-        printf "\x16\x19\x51\x47\xc0\x08\x91\x63" > ~/.vnc/passwd
-        chmod 600 ~/.vnc/passwd
-        
-        echo "=== Launching Core macOS Display Engine ==="
-        # Forces a stable native virtual display frame buffer allocation
-        sudo /vncserver :1 -geometry 1280x720 -depth 24 -rfbauth ~/.vnc/passwd -SecurityTypes VncAuth > /dev/null 2>&1 & 
-        
-        # Fallback to direct local loopback port allocation if native frame is occupied
-        sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.screensharing.plist > /dev/null 2>&1 &
-        
-        echo "=== Launching Ngrok Tunnel targeting Port 5900 ==="
-        # We target port 5900 to catch the native responsive loopback layer directly
-        nohup /opt/homebrew/bin/ngrok tcp 5900 --log=stdout > /dev/null 2>&1 &
+        echo "=== Installing Chrome Remote Desktop ==="
+        brew install --cask chrome-remote-desktop
 
-    - name: Fetch Public VNC Address
-      run: |
-        echo "Waiting for Ngrok tunnel link to generate..."
-        for i in {1..10}; do
-          if curl --silent http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url' | grep -q "tcp://"; then
-             echo "Ngrok is connected!"
-             break
-          fi
-          echo "Retrying..."
-          sleep 3
-        done
-
-        echo "========================================================"
-        echo "YOUR PUBLIC VNC ADDRESS:"
-        curl --silent http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url'
-        echo "========================================================"
-
+        echo "=== Launching Remote Desktop Engine ==="
+        # PASTE YOUR COPIED COMMAND FROM GOOGLE REMOTEDESKTOP DIRECTLY BELOW THIS LINE:
+        DISPLAY= /opt/homebrew/share/chrome-remote-desktop/chrome-remote-desktop --code="YOUR_CODE_HERE" --redirect-url="https://remotedesktop.google.com/_/oauthredirect" --name-of-host="macOS-Runner"
+        
     - name: Keep Runner Alive
       run: |
-        echo "Runner locked and active. Close the workflow run on GitHub when finished."
+        echo "Your macOS Desktop is live! Connect via the Chrome Remote Desktop app or website."
         tail -f /dev/null
