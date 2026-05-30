@@ -1,4 +1,4 @@
-name: Ubuntu Desktop VPS Server
+name: Ubuntu Desktop VPS Server (Tailscale)
 on: 
   workflow_dispatch:
 
@@ -13,59 +13,46 @@ jobs:
       run: |
         echo "=== Updating System and Installing XFCE4 + VNC ==="
         sudo apt-get update
-        # Installs a lightweight visual desktop interface and the VNC server engine
-        sudo apt-get install -y xfce4 xfce4-goodies tightvncserver jq
+        sudo apt-get install -y xfce4 xfce4-goodies tightvncserver
 
     - name: Configure VNC Password
       run: |
         echo "=== Setting VNC Password ==="
         mkdir -p ~/.vnc
-        
-        # Uses your password 'irvyrvck123' to generate the standard authentication file
         echo "irvyrvck123" | vncpasswd -f > ~/.vnc/passwd
         chmod 600 ~/.vnc/passwd
         
-        # Creating a basic startup script to make sure the XFCE desktop loads when you log in
         echo -e "#!/bin/sh\nxrdb \$HOME/.Xresources\nstartxfce4 &" > ~/.vnc/xstartup
         chmod +x ~/.vnc/xstartup
 
-    - name: Start VNC Server and Ngrok Tunnel
+    - name: Connect to Tailscale
       env:
-        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+        # We will map your Tailscale Auth Key here
+        TAILSCALE_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}
       run: |
-        echo "=== Installing Ngrok ==="
-        curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
-        echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
-        sudo apt-get update && sudo apt-get install ngrok
+        echo "=== Installing Tailscale ==="
+        curl -fsSL https://tailscale.com/install.sh | sh
 
-        echo "=== Authenticating Ngrok ==="
-        ngrok config add-authtoken "$NGROK_AUTH_TOKEN"
-        
+        echo "=== Authenticating and Joining Network ==="
+        # Authenticates and forces the runner to join your Tailscale network
+        sudo tailscale up --authkey="$TAILSCALE_AUTHKEY"
+
+    - name: Start VNC Server
+      run: |
         echo "=== Launching Virtual Ubuntu Display ==="
-        # Starts the desktop on display :1 (maps to port 5901)
         vncserver :1 -geometry 1280x720 -depth 24
-        
-        echo "=== Launching Ngrok Tunnel targeting Port 5901 ==="
-        nohup ngrok tcp 5901 --log=stdout > /dev/null 2>&1 &
 
-    - name: Fetch Public VNC Address
+    - name: Show Connection IP Address
       run: |
-        echo "Waiting for Ngrok tunnel link to generate..."
-        for i in {1..10}; do
-          if curl --silent http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url' | grep -q "tcp://"; then
-             echo "Ngrok is connected!"
-             break
-          fi
-          echo "Retrying..."
-          sleep 3
-        done
-
         echo "========================================================"
-        echo "YOUR PUBLIC UBUNTU VNC ADDRESS:"
-        curl --silent http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url'
+        echo "YOUR VPS TAILSCALE IP ADDRESS:"
+        # This will print the internal Tailscale IP of your GitHub runner
+        tailscale ip -4
+        echo "Connect to this IP on port 5901 (e.g., 100.X.X.X:5901)"
         echo "========================================================"
 
     - name: Keep Runner Alive
       run: |
-        echo "Ubuntu VPS is live and active. Close the workflow run on GitHub when finished."
+        echo "Ubuntu VPS is live on your Tailscale network."
         tail -f /dev/null
+        
