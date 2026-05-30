@@ -9,13 +9,6 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Install and Configure VNC Server
-      run: |
-        echo "=== Configuring macOS VNC ==="
-        sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.screensharing.plist
-        sudo /usr/libexec/ScreenSharingPolicyConfigurator -e
-        echo "VNC Server initialized"
-
     - name: Download and Initialize Ngrok
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
@@ -29,9 +22,10 @@ jobs:
         ./ngrok config add-authtoken "$NGROK_AUTH_TOKEN"
         
         echo "=== Launching Ngrok Tunnel ==="
-        nohup ./ngrok tcp 5900 --log=stdout > /dev/null 2>&1 &
+        # We target port 22 (SSH) since we will use tmate/SSH control
+        nohup ./ngrok tcp 22 --log=stdout > /dev/null 2>&1 &
 
-    - name: Fetch Public VNC Address
+    - name: Fetch Public Address
       run: |
         echo "Waiting for Ngrok tunnel link to generate..."
         for i in {1..6}; do
@@ -44,9 +38,9 @@ jobs:
         done
 
         echo "========================================================"
-        echo "CONNECT TO YOUR VNC CLIENT USING THE ADDRESS BELOW:"
+        echo "YOUR NGROK TUNNEL ADDRESS:"
         curl --silent http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url'
         echo "========================================================"
 
-    - name: Lock Runner Alive
+    - name: Launch Interactive Session
       uses: mxschmitt/action-tmate@v3
