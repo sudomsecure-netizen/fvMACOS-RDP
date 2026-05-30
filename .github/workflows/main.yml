@@ -19,8 +19,8 @@ jobs:
         echo "=== Setting VNC Password ==="
         mkdir -p ~/.vnc
         
-        # Hardcoded password restored directly here
-        echo "Alone215" | vncpasswd -f > ~/.vnc/passwd
+        # Fixed by pointing directly to the Homebrew folder location
+        echo "Alone215" | /opt/homebrew/bin/vncpasswd -f > ~/.vnc/passwd
         chmod 600 ~/.vnc/passwd
 
     - name: Start VNC Desktop and Ngrok
@@ -34,7 +34,8 @@ jobs:
         ngrok config add-authtoken "$NGROK_AUTH_TOKEN"
         
         echo "=== Launching Virtual VNC Server ==="
-        vncserver :1 -geometry 1280x720 -depth 24
+        # Fixed by pointing directly to the Homebrew folder location
+        /opt/homebrew/bin/vncserver :1 -geometry 1280x720 -depth 24
         
         echo "=== Launching Ngrok Tunnel targeting Port 5901 ==="
         nohup ngrok tcp 5901 --log=stdout > /dev/null 2>&1 &
