@@ -17,11 +17,10 @@ jobs:
     - name: Configure VNC Password
       run: |
         echo "=== Setting VNC Password ==="
-        # Creating the local .vnc directory
         mkdir -p ~/.vnc
         
-        # This securely writes your password 'Alone215' into the VNC configuration
-        echo "Alone215" | vncpasswd -f > ~/.vnc/passwd
+        # Using the explicit path to the tool inside the TigerVNC App bundle
+        echo "Alone215" | /Applications/TigerVNC.app/Contents/MacOS/vncpasswd -f > ~/.vnc/passwd
         chmod 600 ~/.vnc/passwd
 
     - name: Start VNC Desktop and Ngrok
@@ -35,8 +34,8 @@ jobs:
         ngrok config add-authtoken "$NGROK_AUTH_TOKEN"
         
         echo "=== Launching Virtual VNC Server ==="
-        # Starts a virtual desktop on display :1 (which maps to port 5901)
-        vncserver :1 -geometry 1280x720 -depth 24
+        # Using the explicit path to launch the server bundle
+        /Applications/TigerVNC.app/Contents/MacOS/vncserver :1 -geometry 1280x720 -depth 24
         
         echo "=== Launching Ngrok Tunnel targeting Port 5901 ==="
         nohup ngrok tcp 5901 --log=stdout > /dev/null 2>&1 &
@@ -61,5 +60,4 @@ jobs:
     - name: Keep Runner Alive
       run: |
         echo "Runner locked and active. Close the workflow run on GitHub when finished."
-        # Keeps the container running without utilizing tmate
         tail -f /dev/null
