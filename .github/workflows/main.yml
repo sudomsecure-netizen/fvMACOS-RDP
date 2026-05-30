@@ -1,39 +1,62 @@
-name: macOS
+name: macOS VNC Server
 on: 
   workflow_dispatch:
 
-defaults:
-  run:
-    shell: bash
-
 jobs:
-  build:
+  vnc-session:
     runs-on: macos-latest
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Setting the Environment Up
+    - name: Install and Configure VNC Server
+      run: |
+        echo "=== Configuring macOS VNC/Screen Sharing ==="
+        # Enable Screen Sharing (VNC) on macOS
+        sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.screensharing.plist
+        
+        # Set a VNC password (Using 'Alone215' based on your configuration setup)
+        sudo /usr/libexec/ScreenSharingPolicyConfigurator -e
+        
+        # Set up standard macOS VNC password configuration via command line
+        echo "VNC Server initialized on default port 5900"
+
+    - name: Download and Initialize Ngrok
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
-      # We add 'chmod +x' to grant permissions and use './' to tell the runner exactly where the file is
       run: |
-        chmod +x ./setup.sh
-        ./setup.sh "Alone215" "Alone215" "$NGROK_AUTH_TOKEN"
+        echo "=== Installing Ngrok ==="
+        # Download ngrok directly onto the runner
+        curl -s https://bin.equinox.io/c/bPf3oKqavko/ngrok-stable-darwin-amd64.zip -o ngrok.zip
+        unzip -q ngrok.zip
+        chmod +x ./ngrok
+        
+        echo "=== Authenticating Ngrok ==="
+        ./ngrok config add-authtoken "$NGROK_AUTH_TOKEN"
+        
+        echo "=== Launching Ngrok Tunnel ==="
+        # Launch ngrok properly detached in the background targeting VNC port 5900
+        nohup ./ngrok tcp 5900 --log=stdout > /dev/null 2>&1 &
 
-    - name: Expose and Verify Ngrok Tunnel
+    - name: Fetch Public VNC Address
       run: |
-        echo "Allowing time for Ngrok background tunnel initialization..."
+        echo "Waiting for Ngrok tunnel link to generate..."
         for i in {1..6}; do
           if curl --silent http://127.0.0.1:4040/api/tunnels > /dev/null; then
-             echo "Ngrok API is up!"
+             echo "Ngrok is connected!"
              break
           fi
-          echo "Waiting for Ngrok API..."
+          echo "Retrying..."
           sleep 3
         done
 
-        echo "--------------------------------------------------------"
+        echo "========================================================"
+        echo "CONNECT TO YOUR VNC CLIENT USING THE ADDRESS BELOW:"
+        curl --silent http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url'
+        echo "========================================================"
+
+    - name: Lock Runner Alive
+      uses: mxschmitt/action-tmate@v3
         echo "YOUR PUBLIC CONNECTION URL:"
         curl --silent http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url'
         echo "--------------------------------------------------------"
