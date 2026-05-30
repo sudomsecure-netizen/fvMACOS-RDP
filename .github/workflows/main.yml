@@ -9,22 +9,12 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Install VNC Server and Tools
+    - name: Install VNC Server Engine
       run: |
         echo "=== Installing TigerVNC Server via Homebrew ==="
         brew install tiger-vnc
 
-    - name: Configure VNC Desktop Directly
-      run: |
-        echo "=== Bypassing Configuration Utilities ==="
-        mkdir -p ~/.vnc
-        
-        # Directly writing a pre-encrypted token data block for your password 'irvyrvck123'
-        # This completely avoids using the 'vncpasswd' command entirely.
-        printf "\x16\x19\x51\x47\xc0\x08\x91\x63" > ~/.vnc/passwd
-        chmod 600 ~/.vnc/passwd
-
-    - name: Start VNC Desktop and Ngrok
+    - name: Start Direct VNC Engine and Ngrok
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
       run: |
@@ -34,8 +24,14 @@ jobs:
         echo "=== Authenticating Ngrok ==="
         /opt/homebrew/bin/ngrok config add-authtoken "$NGROK_AUTH_TOKEN"
         
-        echo "=== Launching Virtual VNC Server ==="
-        /opt/homebrew/bin/vncserver :1 -geometry 1280x720 -depth 24
+        echo "=== Configuring Password Direct File ==="
+        mkdir -p ~/.vnc
+        printf "\x16\x19\x51\x47\xc0\x08\x91\x63" > ~/.vnc/passwd
+        chmod 600 ~/.vnc/passwd
+        
+        echo "=== Launching Direct Xvnc Display Engine ==="
+        # Bypasses vncserver entirely. Launches screen on display :1 (Port 5901)
+        nohup /opt/homebrew/bin/Xvnc :1 -geometry 1280x720 -depth 24 -rfbauth ~/.vnc/passwd -SecurityTypes VncAuth > /dev/null 2>&1 &
         
         echo "=== Launching Ngrok Tunnel targeting Port 5901 ==="
         nohup /opt/homebrew/bin/ngrok tcp 5901 --log=stdout > /dev/null 2>&1 &
