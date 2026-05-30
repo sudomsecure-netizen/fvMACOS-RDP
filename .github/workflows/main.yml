@@ -11,18 +11,16 @@ jobs:
 
     - name: Install VNC Server and Tools
       run: |
-        echo "=== Installing TigerVNC via Homebrew ==="
-        brew install tigervnc
+        echo "=== Installing TigerVNC Server Binary via Homebrew ==="
+        brew install tiger-vnc
 
     - name: Configure VNC Password
-      env:
-        VNC_SECRET_PASS: ${{ secrets.PASSWD }}
       run: |
         echo "=== Setting VNC Password ==="
         mkdir -p ~/.vnc
         
-        # Explicitly using the Homebrew binary path to bypass the .app bundle wrapper
-        echo "$VNC_SECRET_PASS" | /opt/homebrew/bin/vncpasswd -f > ~/.vnc/passwd
+        # Hardcoded password restored directly here
+        echo "Alone215" | vncpasswd -f > ~/.vnc/passwd
         chmod 600 ~/.vnc/passwd
 
     - name: Start VNC Desktop and Ngrok
@@ -36,8 +34,7 @@ jobs:
         ngrok config add-authtoken "$NGROK_AUTH_TOKEN"
         
         echo "=== Launching Virtual VNC Server ==="
-        # Launching via the Homebrew path
-        /opt/homebrew/bin/vncserver :1 -geometry 1280x720 -depth 24
+        vncserver :1 -geometry 1280x720 -depth 24
         
         echo "=== Launching Ngrok Tunnel targeting Port 5901 ==="
         nohup ngrok tcp 5901 --log=stdout > /dev/null 2>&1 &
