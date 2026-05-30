@@ -1,4 +1,4 @@
-name: Ubuntu Desktop VPS Server (Tailscale)
+name: Ultimate Ubuntu Desktop VPS (With Apps)
 on: 
   workflow_dispatch:
 
@@ -9,50 +9,27 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Install Desktop Environment and VNC
+    - name: Install Premium Desktop Environment & Utilities
       run: |
-        echo "=== Updating System and Installing XFCE4 + VNC ==="
-        sudo apt-get update
-        sudo apt-get install -y xfce4 xfce4-goodies tightvncserver
-
-    - name: Configure VNC Password
-      run: |
-        echo "=== Setting VNC Password ==="
-        mkdir -p ~/.vnc
-        echo "irvyrvck123" | vncpasswd -f > ~/.vnc/passwd
-        chmod 600 ~/.vnc/passwd
+        echo "=== Updating Repositories ==="
+        sudo apt-get update -y
         
-        echo -e "#!/bin/sh\nxrdb \$HOME/.Xresources\nstartxfce4 &" > ~/.vnc/xstartup
-        chmod +x ~/.vnc/xstartup
+        echo "=== Installing XFCE4, VNC Server, and Core Dev Tools ==="
+        sudo apt-get install -y xfce4 xfce4-goodies tightvncserver git curl jq zip unzip build-essential htop nano neofetch
 
-    - name: Connect to Tailscale
-      env:
-        # We will map your Tailscale Auth Key here
-        TAILSCALE_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}
+    - name: Install Google Chrome Browser
       run: |
-        echo "=== Installing Tailscale ==="
-        curl -fsSL https://tailscale.com/install.sh | sh
+        echo "=== Downloading and Installing Google Chrome ==="
+        wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+        sudo apt-get install -y ./google-chrome-stable_current_amd64.deb
+        rm ./google-chrome-stable_current_amd64.deb
 
-        echo "=== Authenticating and Joining Network ==="
-        # Authenticates and forces the runner to join your Tailscale network
-        sudo tailscale up --authkey="$TAILSCALE_AUTHKEY"
-
-    - name: Start VNC Server
+    - name: Pre-install Cool Desktop Applications
       run: |
-        echo "=== Launching Virtual Ubuntu Display ==="
-        vncserver :1 -geometry 1280x720 -depth 24
-
-    - name: Show Connection IP Address
-      run: |
-        echo "========================================================"
-        echo "YOUR VPS TAILSCALE IP ADDRESS:"
-        # This will print the internal Tailscale IP of your GitHub runner
-        tailscale ip -4
-        echo "Connect to this IP on port 5901 (e.g., 100.X.X.X:5901)"
-        echo "========================================================"
-
-    - name: Keep Runner Alive
-      run: |
-        echo "Ubuntu VPS is live on your Tailscale network."
-        tail -f /dev/null
+        echo "=== Installing VLC, FileZilla, and Transmission ==="
+        sudo apt-get install -y vlc filezilla transmission-gtv
         
+        echo "=== Installing VS Code (VSCodium) ==="
+        # Adds the secure repository key for the open-source VS Code binary
+        wget -qO - https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/-/raw/master/pub.gpg | gpg --dearmor | sudo dd of=/usr/share/keyrings/vscodium-archive-keyring.gpg
+        echo 'deb [ signed-by=/usr/share/keyrings/vscodium-archive-keyring.gpg ] https://download.vscodium.com/debs vscodium main' | sudo tee /etc/apt/sources.list
