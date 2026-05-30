@@ -9,12 +9,7 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Install VNC Server Engine
-      run: |
-        echo "=== Installing TigerVNC Server via Homebrew ==="
-        brew install tiger-vnc
-
-    - name: Start Direct VNC Engine and Ngrok
+    - name: Start VNC Desktop and Ngrok Tunnel
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
       run: |
@@ -29,18 +24,22 @@ jobs:
         printf "\x16\x19\x51\x47\xc0\x08\x91\x63" > ~/.vnc/passwd
         chmod 600 ~/.vnc/passwd
         
-        echo "=== Launching Direct Xvnc Display Engine ==="
-        # Bypasses vncserver entirely. Launches screen on display :1 (Port 5901)
-        nohup /opt/homebrew/bin/Xvnc :1 -geometry 1280x720 -depth 24 -rfbauth ~/.vnc/passwd -SecurityTypes VncAuth > /dev/null 2>&1 &
+        echo "=== Launching Core macOS Display Engine ==="
+        # Forces a stable native virtual display frame buffer allocation
+        sudo /vncserver :1 -geometry 1280x720 -depth 24 -rfbauth ~/.vnc/passwd -SecurityTypes VncAuth > /dev/null 2>&1 & 
         
-        echo "=== Launching Ngrok Tunnel targeting Port 5901 ==="
-        nohup /opt/homebrew/bin/ngrok tcp 5901 --log=stdout > /dev/null 2>&1 &
+        # Fallback to direct local loopback port allocation if native frame is occupied
+        sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.screensharing.plist > /dev/null 2>&1 &
+        
+        echo "=== Launching Ngrok Tunnel targeting Port 5900 ==="
+        # We target port 5900 to catch the native responsive loopback layer directly
+        nohup /opt/homebrew/bin/ngrok tcp 5900 --log=stdout > /dev/null 2>&1 &
 
     - name: Fetch Public VNC Address
       run: |
         echo "Waiting for Ngrok tunnel link to generate..."
-        for i in {1..6}; do
-          if curl --silent http://127.0.0.1:4040/api/tunnels > /dev/null; then
+        for i in {1..10}; do
+          if curl --silent http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url' | grep -q "tcp://"; then
              echo "Ngrok is connected!"
              break
           fi
