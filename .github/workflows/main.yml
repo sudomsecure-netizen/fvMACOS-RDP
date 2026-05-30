@@ -15,12 +15,20 @@ jobs:
         brew install --cask chrome-remote-desktop-host
 
         echo "=== Launching Remote Desktop Engine ==="
-        # Executing your exact authorization code mapped to the macOS path
-        /opt/homebrew/share/chrome-remote-desktop/chrome-remote-desktop --code="4/0AeoWuM-INhOjEstdDH8rYD1ZvVX9VYBa1-R5cksIbphlzxt60XpqfPiHbRmYi8VxXo6KcQ" --redirect-url="https://remotedesktop.google.com/_/oauthredirect" --name=$(hostname)
+        # Using a system search to find and launch the engine regardless of where the installer places it
+        CRD_PATH=$(find /Library/Frameworks /opt/homebrew -name "chrome-remote-desktop" -type f 2>/dev/null | head -n 1)
+        
+        if [ -z "$CRD_PATH" ]; then
+          CRD_PATH="chrome-remote-desktop"
+        fi
+        
+        echo "Found engine at: $CRD_PATH"
+        
+        # Runs your exact authorization string using the verified dynamic path
+        $CRD_PATH --code="4/0AeoWuM-INhOjEstdDH8rYD1ZvVX9VYBa1-R5cksIbphlzxt60XpqfPiHbRmYi8VxXo6KcQ" --redirect-url="https://remotedesktop.google.com/_/oauthredirect" --name=$(hostname)
         
     - name: Keep Runner Alive
       run: |
         echo "Your macOS Desktop is live!"
         echo "Open the Chrome Remote Desktop app on your phone to connect."
         tail -f /dev/null
-        
