@@ -11,14 +11,16 @@ jobs:
 
     - name: Set Up Chrome Remote Desktop
       run: |
-        echo "=== Installing Chrome Remote Desktop ==="
-        brew install --cask chrome-remote-desktop
+        echo "=== Installing Chrome Remote Desktop Host ==="
+        brew install --cask chrome-remote-desktop-host
 
         echo "=== Launching Remote Desktop Engine ==="
-        # PASTE YOUR COPIED COMMAND FROM GOOGLE REMOTEDESKTOP DIRECTLY BELOW THIS LINE:
-        DISPLAY= /opt/homebrew/share/chrome-remote-desktop/chrome-remote-desktop --code="YOUR_CODE_HERE" --redirect-url="https://remotedesktop.google.com/_/oauthredirect" --name-of-host="macOS-Runner"
+        # Executing your exact authorization code mapped to the macOS path
+        /opt/homebrew/share/chrome-remote-desktop/chrome-remote-desktop --code="4/0AeoWuM-INhOjEstdDH8rYD1ZvVX9VYBa1-R5cksIbphlzxt60XpqfPiHbRmYi8VxXo6KcQ" --redirect-url="https://remotedesktop.google.com/_/oauthredirect" --name=$(hostname)
         
     - name: Keep Runner Alive
       run: |
-        echo "Your macOS Desktop is live! Connect via the Chrome Remote Desktop app or website."
+        echo "Your macOS Desktop is live!"
+        echo "Open the Chrome Remote Desktop app on your phone to connect."
         tail -f /dev/null
+        
