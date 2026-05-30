@@ -1,4 +1,4 @@
-name: Ultimate Ubuntu Desktop VPS (With Apps)
+name: Ultimate Ubuntu Desktop VPS (Chrome Fixed)
 on: 
   workflow_dispatch:
 
@@ -9,13 +9,14 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Install Premium Desktop Environment & Utilities
+    - name: Install Desktop Environment & Utilities
       run: |
         echo "=== Updating Repositories ==="
         sudo apt-get update -y
         
-        echo "=== Installing XFCE4, VNC Server, and Core Dev Tools ==="
-        sudo apt-get install -y xfce4 xfce4-goodies tightvncserver git curl jq zip unzip build-essential htop nano neofetch
+        echo "=== Installing XFCE4, VNC Server, and Display Libraries ==="
+        # Added libgbm1 to make sure Chrome's display engine can run smoothly headless
+        sudo apt-get install -y xfce4 xfce4-goodies tightvncserver curl jq htop neofetch libgbm1
 
     - name: Install Google Chrome Browser
       run: |
@@ -24,12 +25,51 @@ jobs:
         sudo apt-get install -y ./google-chrome-stable_current_amd64.deb
         rm ./google-chrome-stable_current_amd64.deb
 
-    - name: Pre-install Cool Desktop Applications
+    - name: Configure High-Performance VNC Display
       run: |
-        echo "=== Installing VLC, FileZilla, and Transmission ==="
-        sudo apt-get install -y vlc filezilla transmission-gtv
+        echo "=== Setting VNC Password ==="
+        mkdir -p ~/.vnc
+        echo "irvyrvck123" | vncpasswd -f > ~/.vnc/passwd
+        chmod 600 ~/.vnc/passwd
         
-        echo "=== Installing VS Code (VSCodium) ==="
-        # Adds the secure repository key for the open-source VS Code binary
-        wget -qO - https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/-/raw/master/pub.gpg | gpg --dearmor | sudo dd of=/usr/share/keyrings/vscodium-archive-keyring.gpg
-        echo 'deb [ signed-by=/usr/share/keyrings/vscodium-archive-keyring.gpg ] https://download.vscodium.com/debs vscodium main' | sudo tee /etc/apt/sources.list
+        echo "=== Building Complete XFCE Desktop Startup Environment ==="
+        cat << 'EOF' > ~/.vnc/xstartup
+        #!/bin/sh
+        unset SESSION_MANAGER
+        unset DBUS_SESSION_BUS_ADDRESS
+        xrdb $HOME/.Xresources
+        startxfce4 &
+        EOF
+        chmod +x ~/.vnc/xstartup
+
+    - name: Secure Connect to Tailscale Network
+      env:
+        TAILSCALE_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}
+      run: |
+        echo "=== Downloading Tailscale Engine ==="
+        curl -fsSL https://tailscale.com/install.sh | sh
+
+        echo "=== Booting Tailscale Mesh Tunnel ==="
+        sudo tailscale up --authkey="$TAILSCALE_AUTHKEY"
+
+    - name: Launch Virtual Server Instance
+      run: |
+        echo "=== Launching Virtual Ubuntu Display (1080p High-Res) ==="
+        vncserver :1 -geometry 1920x1080 -depth 24
+
+    - name: Display Connection Credentials
+      run: |
+        echo "========================================================"
+        echo "YOUR VPS IS ONLINE!"
+        echo "========================================================"
+        echo "TAILSCALE IP ADDRESS:"
+        tailscale ip -4
+        echo ""
+        echo "Connection String: [Your-Tailscale-IP]:5901"
+        echo "VNC Password:      irvyrvck123"
+        echo "========================================================"
+
+    - name: Hold Server Active (6-Hour Limit)
+      run: |
+        echo "System fully armed and operational. Enjoy your custom Ubuntu VPS!"
+        tail -f /dev/null
